@@ -26,14 +26,14 @@ func Login(c *gin.Context) {
 		var da DomainAdmin
 		err = DB.Where(&DomainAdmin{Name: li.UserName}).First(&da).Error
 		if err == nil {
-			checkUser(c, da.Name, li.Pstr, da.Salt, da.Pstr, da.InitialDomain)
+			checkUser(c, da.Name, li.Pstr, da.Salt, da.Pstr, da.InitialDomain, da.JoinedDomain)
 			return
 		}
 	} else {
 		var user User
 		err = DB.Where(&User{Name: li.UserName}).First(&user).Error
 		if err == nil {
-			checkUser(c, user.Name, li.Pstr, user.Salt, user.Pstr, user.DefaultDomain)
+			checkUser(c, user.Name, li.Pstr, user.Salt, user.Pstr, user.DefaultDomain, "")
 			return
 		}
 	}
@@ -47,7 +47,7 @@ func Login(c *gin.Context) {
 	return
 }
 
-func checkUser(c *gin.Context, userName, pstr, salt, hashedPstr, initialDomain string) {
+func checkUser(c *gin.Context, userName, pstr, salt, hashedPstr, initialDomain, joinedDomain string) {
 	sum := md5sum(pstr + salt)
 	fmt.Printf("******************* pstr=%s salt=%s hashedPstr=%s sum=%s\n", pstr, salt, hashedPstr, sum)
 	if sum != hashedPstr {
@@ -55,7 +55,7 @@ func checkUser(c *gin.Context, userName, pstr, salt, hashedPstr, initialDomain s
 		return
 	}
 
-	token, err := genJWTToken(userName, initialDomain)
+	token, err := genJWTToken(userName, initialDomain, joinedDomain)
 	if err != nil {
 		respErr(c, 500, "token生成失败:"+err.Error())
 		return
@@ -65,19 +65,21 @@ func checkUser(c *gin.Context, userName, pstr, salt, hashedPstr, initialDomain s
 }
 
 type Claims struct {
-	Username string `json:"username"`
-	InitDom  string `json:"initDom"`
+	Username      string `json:"username"`
+	InitialDomain string `json:"initialDomain"`
+	JoinedDomain  string `json:"joinedDomain"`
 	jwt.StandardClaims
 }
 
 var JWTSecret = []byte("1234567890")
 
-func genJWTToken(username, dom string) (string, error) {
+func genJWTToken(username, iDom, jDom string) (string, error) {
 	claims := Claims{
 		username,
-		dom,
+		iDom,
+		jDom,
 		jwt.StandardClaims{
-			ExpiresAt: time.Now().Add(3 * time.Hour).Unix(), //todo过期时间
+			ExpiresAt: time.Now().Add(time.Hour * 72).Unix(), //todo 过期时间
 			Issuer:    "aa",
 		},
 	}

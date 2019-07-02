@@ -3,39 +3,68 @@ package httpapi
 import (
 	"fmt"
 	"github.com/gin-gonic/gin"
+	"strings"
 )
 
-type mUR struct {
-	UserId     uint   `json:"userId" binding:"gt=0"`
-	RoleIdList []uint `json:"roleIdList" binding:"gt=0,dive,gt=0"`
+type rolesUserIn struct {
+	UserName     string   `json:"userName" binding:"gt=0"`
+	RoleNameList []string `json:"roleNameList" binding:"gt=0,dive,gt=0"`
+	Domain       string   `json:"domain"`
 }
 
-func AddRoleListOfUser(c *gin.Context) {
-	var mr mUR
-	err := c.BindJSON(&mr)
-	if err != nil {
-		respErr(c, 400, err.Error())
-		return
-	}
+func addOrDelRoleListOfUserFunc(act string) func(c *gin.Context) {
+	return func(c *gin.Context) {
+		var rui rolesUserIn
+		err := c.BindJSON(&rui)
+		if err != nil {
+			respErr(c, 400, err.Error())
+			return
+		}
 
-	err = addRoleListOfUser(mr.UserId, mr.RoleIdList)
-	if err != nil {
-		respErr(c, 400, err.Error())
-		return
-	}
+		dm, err := getDomain(c, rui.Domain)
+		if err != nil {
+			respErr(c, 400, err.Error())
+			return
+		}
 
-	respOkEmpty(c)
+		u := User{Name: rui.UserName}
+		DB.Find(&u)
+		if u.DefaultDomain != dm {
+			respErr(c, 400, fmt.Sprintf("%s不在域(%s)内", u.Name, dm))
+			return
+		}
+
+		var jdom string
+		if ctxUser(c) == SA {
+			fmt.Printf("****************rui.Domain=  %s\n", rui.Domain)
+			jdom, err = getJoinedDomainByInitialDomain(rui.Domain)
+			if err != nil {
+				respErr(c, 400, err.Error())
+				return
+			}
+		}
+		domList := strings.Fields(strings.Replace(dm+","+jdom, ",", " ", -1))
+		fmt.Printf("****************domList=  %s\n", domList)
+
+		err = addOrDelRoleListOfUser(act, rui.UserName, rui.RoleNameList, domList)
+		if err != nil {
+			respErr(c, 400, err.Error())
+			return
+		}
+
+		respOkEmpty(c)
+	}
 }
 
 func DeleteRoleListOfUser(c *gin.Context) {
-	var mr mUR
-	err := c.BindJSON(&mr)
+	var rui rolesUserIn
+	err := c.BindJSON(&rui)
 	if err != nil {
 		respErr(c, 400, err.Error())
 		return
 	}
 
-	err = deleteRoleListOfUser(mr.UserId, mr.RoleIdList)
+	err = deleteRoleListOfUser(rui.UserName, rui.RoleNameList)
 	if err != nil {
 		respErr(c, 400, err.Error())
 		return
@@ -44,40 +73,47 @@ func DeleteRoleListOfUser(c *gin.Context) {
 	respOkEmpty(c)
 }
 
-func deleteRoleListOfUser(userId uint, roleIdList []uint) error {
-	rolesDelete := make([]Role, len(roleIdList))
-	for i := range roleIdList {
-		rolesDelete[i].ID = roleIdList[i]
+func deleteRoleListOfUser(userName string, roleNameList []string) error {
+	rolesDelete := make([]Role, len(roleNameList))
+	for i := range roleNameList {
+		rolesDelete[i].Name = roleNameList[i]
 	}
 
-	user := User{Model: Model{ID: userId}}
+	user := User{Name: userName}
 	err := DB.Model(&user).Association("roles").Delete(&rolesDelete).Error
 	if err != nil {
 		return fmt.Errorf("删除'用户.角色'失败：%v", err)
 	}
 	fmt.Printf("删除用户.角色：user:%+v, roles:%+v\n", user, rolesDelete)
-	loadUserOfRolePolicy(rolesDelete, user.Name, "del")
+	loadRoleOfUserPolicy(rolesDelete, user.Name, "del")
 	return nil
 }
 
-func addRoleListOfUser(userId uint, roleIdList []uint) error {
-	var rolesAppend []Role
-	user := User{Model: Model{ID: userId}}
-	err := DB.Model(&user).Where(`id in (?)`, roleIdList).Find(&rolesAppend).Error
-	if err != nil {
-		return fmt.Errorf("检查`用户.角色`：%v", err)
+func addOrDelRoleListOfUser(action, userName string, roleNameList, domList []string) error {
+	for _, roleName := range roleNameList {
+		cnt := 0
+		DB.Table(`role`).Where(`name = ? AND default_domain IN (?)`, roleName, domList).Count(&cnt)
+		if cnt == 0 {
+			return fmt.Errorf("角色(%s)不属于初始域或扩展域", roleName)
+		}
 	}
 
-	if len(rolesAppend) == 0 {
-		return fmt.Errorf("添加`用户.角色`失败，要添加的角色不存在：%v", err)
+	roleList := make([]Role, len(roleNameList))
+	for i := range roleNameList {
+		roleList[i].Name = roleNameList[i]
 	}
 
-	//只添加数据库有的资源
-	err = DB.Model(&user).Association("roles").Append(&rolesAppend).Error
-	if err != nil {
-		return fmt.Errorf("添加`角色.资源`失败：%v", err)
+	user := User{Name: userName}
+	actFunc := DB.Model(&user).Association("roles").Append
+	if action == "del" {
+		actFunc = DB.Model(&user).Association("roles").Delete
 	}
-	fmt.Printf("增加用户.角色：user:%+v, roles:%+v\n", user, rolesAppend)
-	loadUserOfRolePolicy(rolesAppend, user.Name, "add")
+	err := actFunc(&roleList).Error
+	if err != nil {
+		return fmt.Errorf("%s `角色.资源`失败：%v", action, err)
+	}
+
+	fmt.Printf("addOrDelRoleListOfUser: 用户.角色：user:%+v, roles:%+v\n", user, roleList)
+	loadRoleOfUserPolicy(roleList, user.Name, action)
 	return nil
 }

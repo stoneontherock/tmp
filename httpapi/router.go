@@ -31,8 +31,6 @@ func newEngine() *gin.Engine {
 	da := apiV.Group("/da")
 	{
 		//资源
-		//da.GET("/menus", da.GetMenus)
-		//da.GET("/menus/:id", da.GetMenu)
 		da.POST("/resource", AddResource)
 		da.DELETE("/resource", DeleteResource)
 
@@ -41,24 +39,18 @@ func newEngine() *gin.Engine {
 		da.DELETE("/role_resources", DeleteResourceListOfRole)
 
 		//角色
-		//da.PUT("/menus/:id", da.EditMenu)
-		//da.DELETE("/menus/:id", da.DeleteMenu)
-		//
-		//da.GET("/roles", da.GetRoles)
-		//da.GET("/roles/:id", da.GetRole)
 		da.POST("/role", AddRole)
+		da.DELETE("/role", DelRole)
+		da.GET("/role", ListRole)
 
 		//用户.角色
-		da.POST("/user_roles", AddRoleListOfUser)
-		da.DELETE("/user_roles", DeleteRoleListOfUser)
+		da.POST("/user_roles", addOrDelRoleListOfUserFunc("add"))
+		da.DELETE("/user_roles", addOrDelRoleListOfUserFunc("del"))
 
 		//用户
-		//da.DELETE("/roles/:id", da.DeleteRole)
-		//da.GET("/users", api.GetUsers)
-		da.GET("/user", ListUser)
 		da.POST("/user", AddUser)
-
-		//da.DELETE("/users/:id", api.DeleteUser)
+		da.DELETE("/user", DelUser)
+		da.GET("/user", ListUser)
 
 	}
 
@@ -66,6 +58,7 @@ func newEngine() *gin.Engine {
 	apiV.POST("/sa", AddDomainAdmin)
 	//鉴权
 	apiV.GET("/permission", CheckPermission)
+	apiV.GET("/test", test)
 
 	return e
 }

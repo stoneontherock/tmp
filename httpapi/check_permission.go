@@ -16,7 +16,7 @@ func CheckPermission(c *gin.Context) {
 		return
 	}
 
-	user := User{Name: c.GetString("userName")}
+	user := User{Name: ctxUser(c)}
 	if ci.Domain == "" {
 		err = DB.First(&user).Error
 		if err != nil { //todo not found

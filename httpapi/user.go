@@ -13,8 +13,9 @@ func init() {
 }
 
 type addUserIn struct {
-	Name string `json:"name" binding:"isName"`
-	Pstr string `json:"pstr" binding:"isPstr"`
+	Name   string `json:"name" binding:"isName"`
+	Pstr   string `json:"pstr" binding:"isPstr"`
+	Domain string `json:"domain"`
 }
 
 func AddUser(c *gin.Context) {
@@ -25,26 +26,29 @@ func AddUser(c *gin.Context) {
 		return
 	}
 
-
-	defaultDomain := c.GetString("initDomain")
+	dm, err := getDomain(c, aui.Domain)
+	if err != nil {
+		respErr(c, 400, err.Error())
+		return
+	}
 
 	cnt := 0
 	//不允许重名
-	err = DB.Model(&User{}).Where(&User{Name: aui.Name/*, DefaultDomain: defaultDomain*/}).Count(&cnt).Error
+	err = DB.Model(&User{}).Where(&User{Name: aui.Name}).Count(&cnt).Error
 	if err != nil {
 		respErr(c, 500, err.Error())
 		return
 	}
 
 	if cnt > 0 {
-		respErr(c, 500, fmt.Sprintf("用户已经存在(name+defaultdomain)"))
+		respErr(c, 500, fmt.Sprintf("用户已经存在"))
 		return
 	}
 
 	user := User{
 		Name:          aui.Name,
 		Pstr:          aui.Pstr,
-		DefaultDomain: defaultDomain,
+		DefaultDomain: dm,
 	}
 
 	user.Salt = getRandomStr(8)
@@ -58,8 +62,56 @@ func AddUser(c *gin.Context) {
 	respOkEmpty(c)
 }
 
+type delUserIn struct {
+	Name   string `json:"name" binding:"required"`
+	Domain string `json:"domain"`
+}
+
+func DelUser(c *gin.Context) {
+	var dui delUserIn
+	err := c.BindJSON(&dui)
+	if err != nil {
+		respErr(c, 400, err.Error())
+		return
+	}
+
+	dm, err := getDomain(c, dui.Domain)
+	if err != nil {
+		respErr(c, 400, err.Error())
+		return
+	}
+
+	var u User
+	DB.Where(`name = ? AND default_domain = ?`, dui.Name, dm).First(&u)
+	if u.Name == "" {
+		respErr(c, 500, "找不到用户")
+		return
+	}
+
+	commit := false
+	tx, commitFunc := txCommit(DB, &commit)
+	defer commitFunc()
+
+	user := User{Name: dui.Name}
+	err = tx.Table(`user_role`).Where("user_name = ?", dui.Name).Delete(&userRole{}).Error
+	if err != nil {
+		respErr(c, 500, "删除用户失败:user+role:"+err.Error())
+		return
+	}
+
+	if err := tx.Delete(&user).Error; err != nil {
+		respErr(c, 500, "删除用户失败:user:"+err.Error())
+		return
+	}
+
+	Enforcer.DeleteUser(dui.Name)
+	commit = true
+	respOkEmpty(c)
+}
+
 type luIn struct {
 	Name   string `form:"name"`
+	Domain string `form:"domain"`
 	Offset int    `form:"offset" binding:"omitempty,gte=0"`
 	Limit  int    `form:"limit" binding:"omitempty,gt=0"`
 	Sort   string `form:"sort" binding:"omitempty,gt=0"`
@@ -74,15 +126,20 @@ func ListUser(c *gin.Context) {
 		return
 	}
 
-	defaultDomain := c.GetString("initDomain")
+	dm, err := getDomain(c, li.Domain)
+	if err != nil {
+		respErr(c, 400, err.Error())
+		return
+	}
 
 	total := 0
-	query := DB.Model(&User{}).Where(&User{Name: li.Name, DefaultDomain: defaultDomain})
+	query := DB.Model(&User{}).Where(&User{Name: li.Name, DefaultDomain: dm})
 	err = query.Count(&total).Error
 	if err != nil {
 		respErr(c, 500, err.Error())
 		return
 	}
+	
 	if total == 0 {
 		c.JSON(200, gin.H{"code": 200, "result": nil, "totalCount": total})
 		return

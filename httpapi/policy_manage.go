@@ -2,7 +2,6 @@ package httpapi
 
 import (
 	"fmt"
-	"github.com/casbin/casbin"
 	"github.com/jinzhu/gorm"
 )
 
@@ -22,7 +21,7 @@ func loadResourceOfRolePolicy(resourceList []Resource, roleName, action string) 
 	return
 }
 
-func loadAllRoleRescourcePolicy(e *casbin.Enforcer) error {
+func loadAllRoleRescourcePolicy() error {
 	var roleList []Role
 	err := DB.Find(&roleList).Error
 	if err != nil {
@@ -41,14 +40,14 @@ func loadAllRoleRescourcePolicy(e *casbin.Enforcer) error {
 		}
 		for _, rsc := range resources {
 			fmt.Printf("载入全局角色资源策略：role=%s domain=%s rsc=%s act=%s\n", role.Name, rsc.Domain, rsc.Name, rsc.Act)
-			e.AddPermissionForUser(role.Name, rsc.Name+"@"+rsc.Domain, rsc.Act)
+			Enforcer.AddPermissionForUser(role.Name, rsc.Name+"@"+rsc.Domain, rsc.Act)
 		}
 	}
 
 	return nil
 }
 
-func loadUserOfRolePolicy(roleList []Role, userName, action string) {
+func loadRoleOfUserPolicy(roleList []Role, userName, action string) {
 	if action == "add" {
 		for _, role := range roleList {
 			Enforcer.AddRoleForUser(userName, role.Name)
@@ -61,7 +60,7 @@ func loadUserOfRolePolicy(roleList []Role, userName, action string) {
 	}
 }
 
-func loadAllRoleUserPolicy(e *casbin.Enforcer) error {
+func loadAllUserRolePolicy() error {
 	var userList []User
 	err := DB.Find(&userList).Error
 	if err != nil {
@@ -73,15 +72,15 @@ func loadAllRoleUserPolicy(e *casbin.Enforcer) error {
 	}
 	fmt.Printf("userList=%+v\n", userList)
 
-	for _, user := range userList {
+	for i := range userList {
 		var roles []Role
-		err := DB.Model(&user).Association("roles").Find(&roles).Error
+		err := DB.Model(&userList[i]).Association("roles").Find(&roles).Error
 		if err != nil {
 			return fmt.Errorf("载入全局角色-资源策略失败:roles;%v", err)
 		}
 		for _, role := range roles {
-			fmt.Printf("载入全局用户.角色：user=%s role=%s\n", user.Name, role.Name)
-			e.AddRoleForUser(user.Name, role.Name)
+			fmt.Printf("载入全局用户.角色：user=%s role=%s\n", userList[i].Name, role.Name)
+			Enforcer.AddRoleForUser(userList[i].Name, role.Name)
 		}
 	}
 

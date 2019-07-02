@@ -3,10 +3,40 @@ package httpapi
 import (
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
+	"github.com/sirupsen/logrus"
 	"gopkg.in/go-playground/validator.v8"
 	"reflect"
 	"strings"
 )
+
+const SA = "super_admin"
+
+func respErr(c *gin.Context, code int, err string) {
+	logrus.Errorf("%s", err)
+	c.JSON(code, struct {
+		Code int    `json:"code"`
+		Msg  string `json:"msg"`
+	}{code, err})
+	c.Abort()
+}
+
+func respOkEmpty(c *gin.Context) {
+	c.JSON(200, struct {
+		Code int `json:"code"`
+	}{200})
+	c.Abort()
+}
+
+func respOkData(c *gin.Context, data interface{}) {
+	c.JSON(200, struct {
+		Code int         `json:"code"`
+		Data interface{} `json:"data"`
+	}{
+		200,
+		data,
+	})
+	c.Abort()
+}
 
 func isName(
 	v *validator.Validate, topStruct reflect.Value, currentStructOrField reflect.Value,
@@ -104,14 +134,14 @@ func JWTAuth() gin.HandlerFunc {
 
 		claims, err := parseToken(v[1])
 		if err == nil {
-			if claims.InitDom == "" {
+			if claims.InitialDomain == "" {
 				respErr(c, 401, "空初始域")
 				c.Abort()
 				return
 			}
-			c.Set("initDomain", claims.InitDom)
+			c.Set("initialDomain", claims.InitialDomain)
 			if claims.Username == SA {
-				c.Set("initDomain", "root")
+				c.Set("initialDomain", "root")
 			}
 
 			if strings.HasPrefix(claims.Username, "admin@") && !strings.HasPrefix(c.Request.RequestURI, URI_VER+"/da") {
@@ -120,11 +150,8 @@ func JWTAuth() gin.HandlerFunc {
 				return
 			}
 
-			if strings.HasPrefix(claims.Username, SA) && !strings.HasPrefix(c.Request.RequestURI, URI_VER+"/sa") {
-				respErr(c, 403, "uri forbidden")
-				c.Abort()
-				return
-			}
+			c.Set("userName", claims.Username)
+			c.Set("joinedDomain", claims.JoinedDomain)
 
 			c.Next()
 			return
@@ -138,4 +165,17 @@ func JWTAuth() gin.HandlerFunc {
 		respErr(c, 401, errStr)
 		c.Abort()
 	}
+}
+
+func ctxUser(c *gin.Context) string {
+	return c.GetString("userName")
+}
+func ctxIDom(c *gin.Context) string {
+	return c.GetString("initialDomain")
+}
+func ctxJDom(c *gin.Context) string {
+	return c.GetString("joinedDomain")
+}
+func ctxDomList(c *gin.Context) []string {
+	return strings.Fields(strings.Replace(ctxIDom(c)+","+ctxJDom(c), ",", " ", -1))
 }

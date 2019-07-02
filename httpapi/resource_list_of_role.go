@@ -6,7 +6,7 @@ import (
 )
 
 type mRR struct {
-	RoleID         uint   `json:"roleID" binding:"gt=0"`
+	RoleName       string `json:"roleName" binding:"gt=0"`
 	ResourceIdList []uint `json:"resourceIdList" binding:"gt=0,dive,gt=0"`
 }
 
@@ -18,7 +18,7 @@ func AddResourceListOfRole(c *gin.Context) {
 		return
 	}
 
-	err = addResourceListOfRole(mr.RoleID, mr.ResourceIdList)
+	err = addResourceListOfRole(mr.RoleName, mr.ResourceIdList)
 	if err != nil {
 		respErr(c, 500, err.Error())
 		return
@@ -27,9 +27,9 @@ func AddResourceListOfRole(c *gin.Context) {
 	respOkEmpty(c)
 }
 
-func addResourceListOfRole(roleId uint, resourceIdList []uint) error {
+func addResourceListOfRole(roleName string, resourceIdList []uint) error {
 	var rscAppend []Resource
-	role := Role{Model: Model{ID: roleId}}
+	role := Role{Name: roleName}
 	err := DB.Model(&role).Where(`id in (?)`, resourceIdList).Find(&rscAppend).Error
 	if err != nil {
 		return fmt.Errorf("检查`角色.资源`：%v", err)
@@ -57,7 +57,7 @@ func DeleteResourceListOfRole(c *gin.Context) {
 		return
 	}
 
-	err = deleteResourceListOfRole(mr.RoleID, mr.ResourceIdList)
+	err = deleteResourceListOfRole(mr.RoleName, mr.ResourceIdList)
 	if err != nil {
 		respErr(c, 500, err.Error())
 		return
@@ -66,10 +66,11 @@ func DeleteResourceListOfRole(c *gin.Context) {
 	respOkEmpty(c)
 }
 
-func deleteResourceListOfRole(roleId uint, resourceIdList []uint) error {
-	role := Role{Model: Model{ID: roleId}}
+func deleteResourceListOfRole(roleName string, resourceIdList []uint) error {
+	role := Role{Name: roleName}
 	rscDelete := make([]Resource, len(resourceIdList))
 	for i := range resourceIdList {
+		fmt.Printf("rsc id=%d\n", resourceIdList[i])
 		rscDelete[i].ID = resourceIdList[i]
 	}
 	err := DB.Model(&role).Association("resources").Delete(&rscDelete).Error
