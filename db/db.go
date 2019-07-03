@@ -17,9 +17,10 @@ type Conf struct {
 
 var DB *gorm.DB //standard db
 
-func InitDataBase() {
+
+func InitDataBase(conf *Conf) {
 	var err error
-	source := fmt.Sprintf("%s:%s@tcp(%s)/%s?charset=utf8&loc=Local&parseTime=true", "root", "123456", "127.0.0.1:3306", "myaa")
+	source := fmt.Sprintf("%s:%s@tcp(%s)/%s?charset=utf8&loc=Local&parseTime=true", conf.User, conf.PStr, conf.Addr, conf.DBName)
 	DB, err = gorm.Open("mysql", source)
 	if err != nil {
 		panic(err)

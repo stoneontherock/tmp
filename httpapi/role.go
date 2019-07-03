@@ -9,10 +9,10 @@ import (
 
 type roleIn struct {
 	Name   string `json:"name" binding:"required"`
-	Domain string `json:"domain"`
+	Domain string `json:"domain" binding:"omitempty,isDomain"`
 }
 
-func AddRole(c *gin.Context) {
+func addRole(c *gin.Context) {
 	var ri roleIn
 	err := c.BindJSON(&ri)
 	if err != nil {
@@ -48,7 +48,7 @@ func AddRole(c *gin.Context) {
 	respOkEmpty(c)
 }
 
-func DelRole(c *gin.Context) {
+func delRole(c *gin.Context) {
 	var ri roleIn
 	err := c.BindJSON(&ri)
 	if err != nil {
@@ -91,10 +91,10 @@ func DelRole(c *gin.Context) {
 }
 
 type listRoleIn struct {
-	Domain string `json:"domain"`
+	Domain string `json:"domain" binding:"omitempty,isDomain"`
 }
 
-func ListRole(c *gin.Context) {
+func listRole(c *gin.Context) {
 	var lri listRoleIn
 	dm, err := getDomain(c, lri.Domain)
 	if err != nil {
@@ -112,7 +112,7 @@ func ListRole(c *gin.Context) {
 	}
 	domList := strings.Fields(strings.Replace(dm+","+jdom, ",", " ", -1))
 
-	roleList, err := listRole(domList)
+	roleList, err := listRoleByDomainList(domList)
 	if err != nil {
 		respErr(c, 500, err.Error())
 		return
@@ -121,7 +121,7 @@ func ListRole(c *gin.Context) {
 	c.JSON(200, gin.H{"code": 200, "roleList": roleList, "total": len(roleList)})
 }
 
-func listRole(domList []string) ([]Role, error) {
+func listRoleByDomainList(domList []string) ([]Role, error) {
 	var roleList []Role
 	err := DB.Where(`default_domain IN (?)`, domList).Find(&roleList).Error
 	if err != nil && err != gorm.ErrRecordNotFound {

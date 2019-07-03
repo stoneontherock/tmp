@@ -8,12 +8,12 @@ import (
 
 type addResourceIn struct {
 	Act     string `json:"act" binding:"required"`
-	Domain  string `json:"domain"` //空则使用默认域
+	Domain  string `json:"domain" binding:"omitempty,isDomain"`
 	Name    string `json:"name" binding:"required"`
 	Comment string `json:"comment" binding:"required"`
 }
 
-func AddResource(c *gin.Context) {
+func addResource(c *gin.Context) {
 	var ari addResourceIn
 	err := c.BindJSON(&ari)
 	if err != nil {
@@ -78,7 +78,7 @@ type roleResource struct {
 	RoleName string
 }
 
-func DeleteResource(c *gin.Context) {
+func deleteResource(c *gin.Context) {
 	var dri deleteResourceIn
 	err := c.BindJSON(&dri)
 	if err != nil {
@@ -102,18 +102,18 @@ func DeleteResource(c *gin.Context) {
 	err = DB.Table(`role_resource`).Select(`role_name`).Where(`resource_id = ?`, dri.ResourceId).Find(&rrList).Error
 	if err == nil {
 		for _, rr := range rrList {
-			err = deleteResourceListOfRole(rr.RoleName, []uint{dri.ResourceId})
+			err = deleteResourceListOfRoleDo(rr.RoleName, []uint{dri.ResourceId})
 			if err != nil {
 				respErr(c, 500, fmt.Sprintf("删除角色.资源失败:%v", err))
 				return
 			}
 		}
-		deleteResourceByName(c, dri.ResourceId)
+		deleteResourceByID(c, dri.ResourceId)
 		return
 	}
 
 	if err != gorm.ErrRecordNotFound {
-		deleteResourceByName(c, dri.ResourceId)
+		deleteResourceByID(c, dri.ResourceId)
 		return
 	}
 
@@ -121,11 +121,39 @@ func DeleteResource(c *gin.Context) {
 
 }
 
-func deleteResourceByName(c *gin.Context, resourceId uint) {
+func deleteResourceByID(c *gin.Context, resourceId uint) {
 	err := DB.Delete(&Resource{ID: resourceId}).Error
 	if err != nil {
-		respErr(c, 500, fmt.Sprintf("删除资源失败: ID=%s, %v", resourceId, err))
+		respErr(c, 500, fmt.Sprintf("删除资源失败: ID=%d, %v", resourceId, err))
 		return
 	}
 	respOkEmpty(c)
+}
+
+type listResourceIn struct {
+	Domain string `form:"domain" binding:"omitempty,isDomain"`
+}
+
+func listResource(c *gin.Context) {
+	var lri listResourceIn
+	err := c.ShouldBindQuery(&lri)
+	if err != nil {
+		respErr(c, 400, err.Error())
+		return
+	}
+
+	dm, err := getDomain(c, lri.Domain)
+	if err != nil {
+		respErr(c, 400, err.Error())
+		return
+	}
+
+	var rscList []Resource
+	err = DB.Find(&rscList, `domain = ?`, dm).Error
+	if err != nil && err != gorm.ErrRecordNotFound {
+		respErr(c, 500, err.Error())
+		return
+	}
+
+	c.JSON(200, gin.H{"code": 200, "result": rscList, "totalCount": len(rscList)})
 }

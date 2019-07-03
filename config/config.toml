@@ -1,0 +1,18 @@
+[HTTP]
+  listen_addr = ":2000"
+[DB]
+  user = "root"
+  addr = "127.0.0.1:3306"
+  pstr = "123456"
+  # 数据库名
+  db_name = "myaa"
+
+
+# 日志配置
+[Log]
+  # 日志级别: debug=5 info=4 warn=3 error=2
+  level = 5
+  # 单个日志文件大小（MB）
+  max_size = 10
+  # 日志轮转备份数
+  max_backup = 5

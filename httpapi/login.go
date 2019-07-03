@@ -1,10 +1,10 @@
 package httpapi
 
 import (
-	"fmt"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
 	"github.com/jinzhu/gorm"
+	"github.com/sirupsen/logrus"
 	"strings"
 	"time"
 )
@@ -14,7 +14,7 @@ type loginIn struct {
 	Pstr     string `json:"pstr" binding:"required"`
 }
 
-func Login(c *gin.Context) {
+func login(c *gin.Context) {
 	var li loginIn
 	err := c.BindJSON(&li)
 	if err != nil {
@@ -49,7 +49,7 @@ func Login(c *gin.Context) {
 
 func checkUser(c *gin.Context, userName, pstr, salt, hashedPstr, initialDomain, joinedDomain string) {
 	sum := md5sum(pstr + salt)
-	fmt.Printf("******************* pstr=%s salt=%s hashedPstr=%s sum=%s\n", pstr, salt, hashedPstr, sum)
+	logrus.Debugf("pstr=%s salt=%s hashedPstr=%s sum=%s\n", pstr, salt, hashedPstr, sum)
 	if sum != hashedPstr {
 		c.JSON(401, gin.H{"code": 401, "msg": "用户名或密码错误"})
 		return

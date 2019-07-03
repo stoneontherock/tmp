@@ -3,19 +3,20 @@ package httpapi
 import (
 	"fmt"
 	"github.com/jinzhu/gorm"
+	"github.com/sirupsen/logrus"
 )
 
 func loadResourceOfRolePolicy(resourceList []Resource, roleName, action string) {
 	if action == "add" {
 		for _, r := range resourceList {
-			fmt.Printf("增加角色.资源：role:%s, domain:%s rscname:%s, act:%s\n", roleName, r.Domain, r.Name, r.Act)
+			logrus.Debugf("增加角色.资源：role:%s, domain:%s rscname:%s, act:%s\n", roleName, r.Domain, r.Name, r.Act)
 			Enforcer.AddPermissionForUser(roleName, r.Name+"@"+r.Domain, r.Act)
 		}
 		return
 	}
 
 	for _, r := range resourceList {
-		fmt.Printf("删除角色.资源：role:%s, domain:%s rscname:%s, act:%s\n", roleName, r.Domain, r.Name, r.Act)
+		logrus.Debugf("删除角色.资源：role:%s, domain:%s rscname:%s, act:%s\n", roleName, r.Domain, r.Name, r.Act)
 		Enforcer.DeletePermissionForUser(roleName, r.Name+"@"+r.Domain, r.Act)
 	}
 	return
@@ -39,7 +40,7 @@ func loadAllRoleRescourcePolicy() error {
 			return fmt.Errorf("载入全局角色-资源策略失败:resources;%v", err)
 		}
 		for _, rsc := range resources {
-			fmt.Printf("载入全局角色资源策略：role=%s domain=%s rsc=%s act=%s\n", role.Name, rsc.Domain, rsc.Name, rsc.Act)
+			logrus.Debugf("载入全局角色资源策略：role=%s domain=%s rsc=%s act=%s\n", role.Name, rsc.Domain, rsc.Name, rsc.Act)
 			Enforcer.AddPermissionForUser(role.Name, rsc.Name+"@"+rsc.Domain, rsc.Act)
 		}
 	}
@@ -70,7 +71,7 @@ func loadAllUserRolePolicy() error {
 			return fmt.Errorf("载入全局角色-用户策略失败:userList; %v", err)
 		}
 	}
-	fmt.Printf("userList=%+v\n", userList)
+	logrus.Debugf("userList=%+v\n", userList)
 
 	for i := range userList {
 		var roles []Role
@@ -79,7 +80,7 @@ func loadAllUserRolePolicy() error {
 			return fmt.Errorf("载入全局角色-资源策略失败:roles;%v", err)
 		}
 		for _, role := range roles {
-			fmt.Printf("载入全局用户.角色：user=%s role=%s\n", userList[i].Name, role.Name)
+			logrus.Debugf("载入全局用户.角色：user=%s role=%s\n", userList[i].Name, role.Name)
 			Enforcer.AddRoleForUser(userList[i].Name, role.Name)
 		}
 	}

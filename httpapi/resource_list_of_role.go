@@ -3,6 +3,7 @@ package httpapi
 import (
 	"fmt"
 	"github.com/gin-gonic/gin"
+	"github.com/sirupsen/logrus"
 )
 
 type mRR struct {
@@ -10,7 +11,7 @@ type mRR struct {
 	ResourceIdList []uint `json:"resourceIdList" binding:"gt=0,dive,gt=0"`
 }
 
-func AddResourceListOfRole(c *gin.Context) {
+func addResourceListOfRole(c *gin.Context) {
 	var mr mRR
 	err := c.BindJSON(&mr)
 	if err != nil {
@@ -18,7 +19,7 @@ func AddResourceListOfRole(c *gin.Context) {
 		return
 	}
 
-	err = addResourceListOfRole(mr.RoleName, mr.ResourceIdList)
+	err = addResourceListOfRoleDo(mr.RoleName, mr.ResourceIdList)
 	if err != nil {
 		respErr(c, 500, err.Error())
 		return
@@ -27,7 +28,7 @@ func AddResourceListOfRole(c *gin.Context) {
 	respOkEmpty(c)
 }
 
-func addResourceListOfRole(roleName string, resourceIdList []uint) error {
+func addResourceListOfRoleDo(roleName string, resourceIdList []uint) error {
 	var rscAppend []Resource
 	role := Role{Name: roleName}
 	err := DB.Model(&role).Where(`id in (?)`, resourceIdList).Find(&rscAppend).Error
@@ -44,12 +45,12 @@ func addResourceListOfRole(roleName string, resourceIdList []uint) error {
 	if err != nil {
 		return fmt.Errorf("添加`角色.资源`失败：%v", err)
 	}
-	fmt.Printf("增加角色.资源：role:%+v, rscs:%+v\n", role, rscAppend)
+	logrus.Debugf("增加角色.资源：role:%+v, rscs:%+v\n", role, rscAppend)
 	loadResourceOfRolePolicy(rscAppend, role.Name, "add")
 	return nil
 }
 
-func DeleteResourceListOfRole(c *gin.Context) {
+func deleteResourceListOfRole(c *gin.Context) {
 	var mr mRR
 	err := c.BindJSON(&mr)
 	if err != nil {
@@ -57,7 +58,7 @@ func DeleteResourceListOfRole(c *gin.Context) {
 		return
 	}
 
-	err = deleteResourceListOfRole(mr.RoleName, mr.ResourceIdList)
+	err = deleteResourceListOfRoleDo(mr.RoleName, mr.ResourceIdList)
 	if err != nil {
 		respErr(c, 500, err.Error())
 		return
@@ -66,18 +67,18 @@ func DeleteResourceListOfRole(c *gin.Context) {
 	respOkEmpty(c)
 }
 
-func deleteResourceListOfRole(roleName string, resourceIdList []uint) error {
+func deleteResourceListOfRoleDo(roleName string, resourceIdList []uint) error {
 	role := Role{Name: roleName}
 	rscDelete := make([]Resource, len(resourceIdList))
 	for i := range resourceIdList {
-		fmt.Printf("rsc id=%d\n", resourceIdList[i])
+		logrus.Debugf("rsc id=%d\n", resourceIdList[i])
 		rscDelete[i].ID = resourceIdList[i]
 	}
 	err := DB.Model(&role).Association("resources").Delete(&rscDelete).Error
 	if err != nil {
 		return fmt.Errorf("删除`角色.资源`失败：%v", err)
 	}
-	fmt.Printf("删除角色.资源：role:%+v, rscs:%+v\n", role, rscDelete)
+	logrus.Debugf("删除角色.资源：role:%+v, rscs:%+v\n", role, rscDelete)
 	loadResourceOfRolePolicy(rscDelete, role.Name, "del")
 	return nil
 }

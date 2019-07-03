@@ -15,10 +15,10 @@ func init() {
 type addUserIn struct {
 	Name   string `json:"name" binding:"isName"`
 	Pstr   string `json:"pstr" binding:"isPstr"`
-	Domain string `json:"domain"`
+	Domain string `json:"domain" binding:"omitempty,isDomain"`
 }
 
-func AddUser(c *gin.Context) {
+func addUser(c *gin.Context) {
 	var aui addUserIn
 	err := c.BindJSON(&aui)
 	if err != nil {
@@ -64,10 +64,10 @@ func AddUser(c *gin.Context) {
 
 type delUserIn struct {
 	Name   string `json:"name" binding:"required"`
-	Domain string `json:"domain"`
+	Domain string `json:"domain" binding:"omitempty,isDomain"`
 }
 
-func DelUser(c *gin.Context) {
+func delUser(c *gin.Context) {
 	var dui delUserIn
 	err := c.BindJSON(&dui)
 	if err != nil {
@@ -111,14 +111,14 @@ func DelUser(c *gin.Context) {
 
 type luIn struct {
 	Name   string `form:"name"`
-	Domain string `form:"domain"`
+	Domain string `form:"domain" binding:"omitempty,isDomain"`
 	Offset int    `form:"offset" binding:"omitempty,gte=0"`
 	Limit  int    `form:"limit" binding:"omitempty,gt=0"`
 	Sort   string `form:"sort" binding:"omitempty,gt=0"`
 	Order  string `form:"order"`
 }
 
-func ListUser(c *gin.Context) {
+func listUser(c *gin.Context) {
 	var li luIn
 	err := c.ShouldBindQuery(&li)
 	if err != nil {

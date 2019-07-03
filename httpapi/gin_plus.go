@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"fmt"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
@@ -27,15 +28,28 @@ func respOkEmpty(c *gin.Context) {
 	c.Abort()
 }
 
-func respOkData(c *gin.Context, data interface{}) {
-	c.JSON(200, struct {
-		Code int         `json:"code"`
-		Data interface{} `json:"data"`
-	}{
-		200,
-		data,
-	})
-	c.Abort()
+//func respOkData(c *gin.Context, data interface{}) {
+//	c.JSON(200, struct {
+//		Code int         `json:"code"`
+//		Data interface{} `json:"data"`
+//	}{
+//		200,
+//		data,
+//	})
+//	c.Abort()
+//}
+
+func ctxUser(c *gin.Context) string {
+	return c.GetString("userName")
+}
+func ctxIDom(c *gin.Context) string {
+	return c.GetString("initialDomain")
+}
+func ctxJDom(c *gin.Context) string {
+	return c.GetString("joinedDomain")
+}
+func ctxDomList(c *gin.Context) []string {
+	return strings.Fields(strings.Replace(ctxIDom(c)+","+ctxJDom(c), ",", " ", -1))
 }
 
 func isName(
@@ -53,6 +67,7 @@ func isName(
 
 	valid := true
 	for _, r := range name {
+		//允许小写字母 - _ 数字
 		if (r >= 'a' && r <= 'z') || r == '-' || r == '_' || (r >= '0' && r <= '9') { // || unicode.IsOneOf([]*unicode.RangeTable{unicode.Han}, r) {
 			continue
 		}
@@ -123,7 +138,33 @@ func isPstr(
 //	return action == "add" || action == "del"
 //}
 
-func JWTAuth() gin.HandlerFunc {
+
+func isDomain(
+	v *validator.Validate, topStruct reflect.Value, currentStructOrField reflect.Value,
+	field reflect.Value, fieldType reflect.Type, fieldKind reflect.Kind, param string,
+) bool {
+	fmt.Printf("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx**************\n")
+	dom, ok := field.Interface().(string)
+	if !ok {
+		return false
+	}
+
+	if !strings.ContainsAny(dom, "abcdefghijklmnopqrstuvwxyz0123456789") {
+		return false
+	}
+
+	for _, r := range dom {
+		//域名中的字符必须是: 小写字母/数字/点号/下划线
+		if !(r >= 'a' && r <= 'z') && !(r >= '0' && r <= '9') && r != '.' && r != '_' {
+			return false
+		}
+	}
+
+	return true
+}
+
+
+func jwtAuth() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		v := strings.Fields(c.GetHeader("Authorization"))
 		if len(v) < 2 || v[0] != "Bearer" {
@@ -165,17 +206,4 @@ func JWTAuth() gin.HandlerFunc {
 		respErr(c, 401, errStr)
 		c.Abort()
 	}
-}
-
-func ctxUser(c *gin.Context) string {
-	return c.GetString("userName")
-}
-func ctxIDom(c *gin.Context) string {
-	return c.GetString("initialDomain")
-}
-func ctxJDom(c *gin.Context) string {
-	return c.GetString("joinedDomain")
-}
-func ctxDomList(c *gin.Context) []string {
-	return strings.Fields(strings.Replace(ctxIDom(c)+","+ctxJDom(c), ",", " ", -1))
 }

@@ -4,11 +4,11 @@ import "github.com/gin-gonic/gin"
 
 type cpIn struct {
 	Act          string `json:"act" binding:"required"`
-	Domain       string `json:"domain"` //todo  空值处理
+	Domain       string `json:"domain" binding:"omitempty,isDomain"`
 	ResourceName string `json:"resourceName" binding:"required"`
 }
 
-func CheckPermission(c *gin.Context) {
+func checkPermission(c *gin.Context) {
 	var ci cpIn
 	err := c.BindJSON(&ci)
 	if err != nil {

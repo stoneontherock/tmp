@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"github.com/casbin/casbin"
 	"github.com/jinzhu/gorm"
+	"github.com/sirupsen/logrus"
 	"os"
+	"path/filepath"
 	"time"
 )
 
@@ -32,7 +34,7 @@ func createSuperAdmin() {
 	sa := DomainAdmin{Name: "super_admin"}
 	err := DB.First(&sa).Error
 	if err == nil {
-		fmt.Printf("super_admin: %v\n", sa)
+		logrus.Debugf("super_admin: %v\n", sa)
 		return
 	}
 
@@ -58,7 +60,8 @@ func createSuperAdmin() {
 var Enforcer *casbin.Enforcer
 
 func initEnforcer() {
-	Enforcer = casbin.NewEnforcer("model.conf", false)
+	binDir, _ := filepath.Abs(filepath.Dir(os.Args[0]))
+	Enforcer = casbin.NewEnforcer(binDir+"/config/model.conf", false)
 	err := loadAllRoleRescourcePolicy()
 	if err != nil {
 		panic(err)
@@ -88,14 +91,14 @@ type Resource struct {
 }
 
 type User struct {
-	Name          string    `gorm:"type:varchar(16);primary_key" json:"name"`
-	Pstr          string    `gorm:"type:varchar(32)" json:"-"`
-	Salt          string    `gorm:"type:varchar(8)" json:"-"`
-	DefaultDomain string    `gorm:"type:varchar(32)" json:"-"`
+	Name          string `gorm:"type:varchar(16);primary_key" json:"name"`
+	Pstr          string `gorm:"type:varchar(32)" json:"-"`
+	Salt          string `gorm:"type:varchar(8)" json:"-"`
+	DefaultDomain string `gorm:"type:varchar(32)" json:"-"`
 	//Creator       string    `gorm:"type:varchar(38)" json:"-"`
-	Roles         []Role    `gorm:"many2many:user_role;" json:"-" `
-	CreatedAt     time.Time `json:"createdAt"`
-	UpdatedAt     time.Time `json:"updatedAt"`
+	Roles     []Role    `gorm:"many2many:user_role;" json:"-" `
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
 }
 
 type DomainAdmin struct {
@@ -124,11 +127,11 @@ func txCommit(db *gorm.DB, commit *bool) (*gorm.DB, func()) {
 	}
 }
 
-func getJoinedDomainByInitialDomain(initialDomain string ) (string ,error){
+func getJoinedDomainByInitialDomain(initialDomain string) (string, error) {
 	var da DomainAdmin
 	err := DB.Where(`initial_domain = ?`, initialDomain).First(&da).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
-		return "",err
+		return "", err
 	}
-	return da.JoinedDomain,nil
+	return da.JoinedDomain, nil
 }

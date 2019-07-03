@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"github.com/gin-gonic/gin"
+	"github.com/sirupsen/logrus"
 	"io"
 	"math/rand"
 )
@@ -29,7 +30,7 @@ func md5sum(key string) string {
 
 func getDomain(c *gin.Context,domain string) (string,error) {
 	dm := ctxIDom(c)
-	fmt.Printf("****************iDom=%s\n",dm)
+	logrus.Debugf("iDom=%s\n",dm)
 	if ctxUser(c) == SA {
 		dm = domain
 		if dm == "" {
