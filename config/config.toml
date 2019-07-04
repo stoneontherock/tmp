@@ -1,12 +1,12 @@
 [HTTP]
   listen_addr = ":2000"
+
 [DB]
   user = "root"
   addr = "127.0.0.1:3306"
   pstr = "123456"
   # 数据库名
   db_name = "myaa"
-
 
 # 日志配置
 [Log]

@@ -27,14 +27,22 @@ func InitModel(db *gorm.DB) {
 }
 
 func autoMigrate() {
-	DB.AutoMigrate(&Resource{}, &Role{}, &User{}, &DomainAdmin{})
+	DB.AutoMigrate(&Resource{}, &Role{}, &User{})
 }
 
 func createSuperAdmin() {
-	sa := DomainAdmin{Name: "super_admin"}
+	pstr := os.Getenv("sa_pstr")
+	if pstr == "" {
+		pstr = "SuperAdmin@123"
+	}
+	salt := getRandomStr(8)
+	hash := md5sum(pstr + salt)
+
+	sa := User{Name: SA}
 	err := DB.First(&sa).Error
 	if err == nil {
-		logrus.Debugf("super_admin: %v\n", sa)
+		logrus.Debugf("超管账户已经存在: %v\n", sa)
+		DB.Updates(map[string]interface{}{"pstr": hash, "salt": salt})
 		return
 	}
 
@@ -42,14 +50,9 @@ func createSuperAdmin() {
 		panic(fmt.Sprintf("查询超管记录时出现错误:%v", err))
 	}
 
-	pstr := os.Getenv("sa_pstr")
-	if pstr == "" {
-		pstr = "SuperAdmin@123"
-	}
-
 	sa.Salt = getRandomStr(8)
 	sa.Pstr = md5sum(pstr + sa.Salt)
-	sa.InitialDomain = "root"
+	sa.DefaultDomain = "root"
 
 	err = DB.Create(&sa).Error
 	if err != nil {
@@ -101,15 +104,15 @@ type User struct {
 	UpdatedAt time.Time `json:"updatedAt"`
 }
 
-type DomainAdmin struct {
-	Name          string    `gorm:"type:varchar(38);primary_key" json:"name"`
-	Pstr          string    `gorm:"type:varchar(32)" json:"-"`
-	Salt          string    `gorm:"type:varchar(8)" json:"-"`
-	InitialDomain string    `gorm:"type:varchar(32)" json:"-"`
-	JoinedDomain  string    `gorm:"type:varchar(255)" json:"-"`
-	CreatedAt     time.Time `json:"createdAt"`
-	UpdatedAt     time.Time `json:"updatedAt"`
-}
+//type DomainAdmin struct {
+//	Name          string    `gorm:"type:varchar(38);primary_key" json:"name"`
+//	Pstr          string    `gorm:"type:varchar(32)" json:"-"`
+//	Salt          string    `gorm:"type:varchar(8)" json:"-"`
+//	InitialDomain string    `gorm:"type:varchar(32)" json:"-"`
+//	JoinedDomain  string    `gorm:"type:varchar(255)" json:"-"`
+//	CreatedAt     time.Time `json:"createdAt"`
+//	UpdatedAt     time.Time `json:"updatedAt"`
+//}
 
 type userRole struct {
 	UserName string
@@ -127,11 +130,11 @@ func txCommit(db *gorm.DB, commit *bool) (*gorm.DB, func()) {
 	}
 }
 
-func getJoinedDomainByInitialDomain(initialDomain string) (string, error) {
-	var da DomainAdmin
-	err := DB.Where(`initial_domain = ?`, initialDomain).First(&da).Error
-	if err != nil && err != gorm.ErrRecordNotFound {
-		return "", err
-	}
-	return da.JoinedDomain, nil
-}
+//func getJoinedDomainByInitialDomain(initialDomain string) (string, error) {
+//	var da DomainAdmin
+//	err := DB.Where(`initial_domain = ?`, initialDomain).First(&da).Error
+//	if err != nil && err != gorm.ErrRecordNotFound {
+//		return "", err
+//	}
+//	return da.JoinedDomain, nil
+//}
