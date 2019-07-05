@@ -20,7 +20,7 @@ type addUserIn struct {
 
 func addUser(c *gin.Context) {
 	var aui addUserIn
-	err := c.BindJSON(&aui)
+	err := c.ShouldBindJSON(&aui)
 	if err != nil {
 		respErr(c, 400, err.Error())
 		return
@@ -46,9 +46,9 @@ func addUser(c *gin.Context) {
 	}
 
 	user := User{
-		Name:          aui.Name,
-		Pstr:          aui.Pstr,
-		DefaultDomain: dm,
+		Name:   aui.Name,
+		Pstr:   aui.Pstr,
+		Domain: dm,
 	}
 
 	user.Salt = getRandomStr(8)
@@ -69,7 +69,7 @@ type delUserIn struct {
 
 func delUser(c *gin.Context) {
 	var dui delUserIn
-	err := c.BindJSON(&dui)
+	err := c.ShouldBindJSON(&dui)
 	if err != nil {
 		respErr(c, 400, err.Error())
 		return
@@ -82,9 +82,9 @@ func delUser(c *gin.Context) {
 	}
 
 	var u User
-	DB.Where(`name = ? AND default_domain = ?`, dui.Name, dm).First(&u)
+	DB.Where(`name = ? AND domain = ?`, dui.Name, dm).First(&u)
 	if u.Name == "" {
-		respErr(c, 500, "找不到用户")
+		respErr(c, 500, "域内找不到用户:"+dui.Name)
 		return
 	}
 
@@ -133,13 +133,13 @@ func listUser(c *gin.Context) {
 	}
 
 	total := 0
-	query := DB.Model(&User{}).Where(&User{Name: li.Name, DefaultDomain: dm})
+	query := DB.Model(&User{}).Where(&User{Name: li.Name, Domain: dm})
 	err = query.Count(&total).Error
 	if err != nil {
 		respErr(c, 500, err.Error())
 		return
 	}
-	
+
 	if total == 0 {
 		c.JSON(200, gin.H{"code": 200, "result": nil, "totalCount": total})
 		return

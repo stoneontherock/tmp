@@ -3,13 +3,9 @@ package httpapi
 import (
 	"crypto/md5"
 	"encoding/hex"
-	"fmt"
-	"github.com/gin-gonic/gin"
-	"github.com/sirupsen/logrus"
 	"io"
 	"math/rand"
 )
-
 
 //ascii 33~126: 字母数字符号
 func getRandomStr(n int) string {
@@ -27,15 +23,3 @@ func md5sum(key string) string {
 	return hex.EncodeToString(w.Sum(nil))
 }
 
-
-func getDomain(c *gin.Context,domain string) (string,error) {
-	dm := ctxIDom(c)
-	logrus.Debugf("iDom=%s\n",dm)
-	if ctxUser(c) == SA {
-		dm = domain
-		if dm == "" {
-			return "",fmt.Errorf("超管必须指定domain")
-		}
-	}
-	return dm,nil
-}

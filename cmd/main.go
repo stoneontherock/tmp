@@ -4,13 +4,15 @@ import (
 	"aa/aalog"
 	"aa/config"
 	"aa/db"
+	"aa/grpc"
 	"aa/httpapi"
 )
 
 func main() {
-	c := config.GetConf()
-	aalog.InitLog(&c.LOG)
-	db.InitDataBase(&c.DB)
-	httpapi.InitModel(db.DB)
-	httpapi.Serve(c.HTTP.ListenAddr)
+	config.GetConf()
+	aalog.InitLog(&config.C.LOG)
+	dbp := db.InitDataBase(&config.C.DB)
+	httpapi.Init(dbp)
+	go httpapi.Serve()
+	grpc.Serve()
 }

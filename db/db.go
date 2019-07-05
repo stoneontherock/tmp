@@ -9,30 +9,31 @@ import (
 )
 
 type Conf struct {
-	User   string `toml:"user"` //数据库用户
-	Addr   string `toml:"addr"` //数据库监听地址
-	PStr   string `toml:"pstr"` //数据库密码
-	DBName string `toml:"db_name"`
+	User   string `toml:"user" validate:"required"` //数据库用户
+	Addr   string `toml:"addr" validate:"required"` //数据库监听地址
+	PStr   string `toml:"pstr" validate:"required"` //数据库密码
+	DBName string `toml:"db_name" validate:"required"`
 }
 
-var DB *gorm.DB //standard db
+//var DB *gorm.DB //standard db
 
-
-func InitDataBase(conf *Conf) {
+func InitDataBase(conf *Conf) *gorm.DB {
 	var err error
 	source := fmt.Sprintf("%s:%s@tcp(%s)/%s?charset=utf8&loc=Local&parseTime=true", conf.User, conf.PStr, conf.Addr, conf.DBName)
-	DB, err = gorm.Open("mysql", source)
+	db, err := gorm.Open("mysql", source)
 	if err != nil {
 		panic(err)
 	}
 
-	DB.DB().SetMaxOpenConns(50)
-	DB.DB().SetMaxIdleConns(30)
-	DB.DB().SetConnMaxLifetime(20 * time.Second)
-	DB.SingularTable(true) //表名非复数形式
+	db.DB().SetMaxOpenConns(50)
+	db.DB().SetMaxIdleConns(30)
+	db.DB().SetConnMaxLifetime(20 * time.Second)
+	db.SingularTable(true) //表名非复数形式
 
-	if err = DB.DB().Ping(); err != nil {
+	if err = db.DB().Ping(); err != nil {
 		log.Printf("DB.DB().Ping():%v", err.Error())
 		panic(err)
 	}
+
+	return db
 }

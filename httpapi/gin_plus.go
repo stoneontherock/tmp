@@ -28,28 +28,23 @@ func respOkEmpty(c *gin.Context) {
 	c.Abort()
 }
 
-//func respOkData(c *gin.Context, data interface{}) {
-//	c.JSON(200, struct {
-//		Code int         `json:"code"`
-//		Data interface{} `json:"data"`
-//	}{
-//		200,
-//		data,
-//	})
-//	c.Abort()
-//}
+func getDomain(c *gin.Context, domain string) (string, error) {
+	dm := ctxDomain(c)
+	logrus.Debugf("iDom=%s\n", dm)
+	if ctxUser(c) == SA {
+		dm = domain //超管不使用token中的domain
+		if dm == "" {
+			return "", fmt.Errorf("超管必须指定domain")
+		}
+	}
+	return dm, nil
+}
 
 func ctxUser(c *gin.Context) string {
 	return c.GetString("userName")
 }
-func ctxIDom(c *gin.Context) string {
-	return c.GetString("initialDomain")
-}
-func ctxJDom(c *gin.Context) string {
-	return c.GetString("joinedDomain")
-}
-func ctxDomList(c *gin.Context) []string {
-	return strings.Fields(strings.Replace(ctxIDom(c)+","+ctxJDom(c), ",", " ", -1))
+func ctxDomain(c *gin.Context) string {
+	return c.GetString("domain")
 }
 
 func isName(
@@ -126,24 +121,10 @@ func isPstr(
 	return upper && lower && digit && punct
 }
 
-//func isAction(
-//	v *validator.Validate, topStruct reflect.Value, currentStructOrField reflect.Value,
-//	field reflect.Value, fieldType reflect.Type, fieldKind reflect.Kind, param string,
-//) bool {
-//	action, ok := field.Interface().(string)
-//	if !ok {
-//		return false
-//	}
-//
-//	return action == "add" || action == "del"
-//}
-
-
 func isDomain(
 	v *validator.Validate, topStruct reflect.Value, currentStructOrField reflect.Value,
 	field reflect.Value, fieldType reflect.Type, fieldKind reflect.Kind, param string,
 ) bool {
-	fmt.Printf("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx**************\n")
 	dom, ok := field.Interface().(string)
 	if !ok {
 		return false
@@ -163,47 +144,54 @@ func isDomain(
 	return true
 }
 
-
 func jwtAuth() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		v := strings.Fields(c.GetHeader("Authorization"))
 		if len(v) < 2 || v[0] != "Bearer" {
-			respErr(c, 401, "认证失败(header)")
-			c.Abort()
+			respErr(c, 401, "认证失败(header)") //respErr中已经包含c.Abort(),所以这里不需要c.Abort()
 			return
 		}
 
-		claims, err := parseToken(v[1])
-		if err == nil {
-			if claims.InitialDomain == "" {
-				respErr(c, 401, "空初始域")
-				c.Abort()
-				return
-			}
-			c.Set("initialDomain", claims.InitialDomain)
-			if claims.Username == SA {
-				c.Set("initialDomain", "root")
-			}
+		claims, err := ParseToken(v[1])
+		if err != nil {
+			respErr(c, 401, "token解析失败: "+err.Error())
+			return
+		}
+		if !strings.HasPrefix(claims.Username, "admin@") && claims.Username != SA {
+			respErr(c, 401, "普通用户不可以管理权限")
+			return
+		}
 
-			if strings.HasPrefix(claims.Username, "admin@") && !strings.HasPrefix(c.Request.RequestURI, URI_VER+"/da") {
-				respErr(c, 403, "uri forbidden")
-				c.Abort()
-				return
+		if err != nil {
+			errStr := "认证失败"
+			if err.(*jwt.ValidationError).Errors == jwt.ValidationErrorExpired {
+				errStr = "token过期"
 			}
 
-			c.Set("userName", claims.Username)
-			c.Set("joinedDomain", claims.JoinedDomain)
+			respErr(c, 401, errStr)
+			return
+		}
 
+		if claims.Domain == "" {
+			respErr(c, 401, "空域")
+			return
+		}
+		c.Set("domain", claims.Domain)
+		c.Set("userName", claims.Username)
+
+		//超管可以访问任意路径
+		if claims.Username == SA {
 			c.Next()
 			return
 		}
 
-		errStr := "认证失败"
-		if err.(*jwt.ValidationError).Errors == jwt.ValidationErrorExpired {
-			errStr = "token过期"
+		//域管理员只能访问 /api/vN/da下的路径
+		if strings.HasPrefix(claims.Username, "admin@") && strings.HasPrefix(c.Request.RequestURI, URI_VER+"/da") {
+			c.Next()
+			return
 		}
 
-		respErr(c, 401, errStr)
-		c.Abort()
+		respErr(c, 403, "Request URI forbidden")
+		return
 	}
 }

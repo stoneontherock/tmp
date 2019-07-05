@@ -9,9 +9,9 @@ import (
 )
 
 type LogConf struct {
-	Level     uint32 `toml:"level"`      //单位MB
-	MaxSize   int    `toml:"max_size"`   //单位MB
-	MaxBackup int    `toml:"max_backup"` //最多备份数
+	Level     uint32 `toml:"level" validate:"lte=6"`      //单位MB
+	MaxSize   int    `toml:"max_size" validate:"gte=1"`   //单位MB
+	MaxBackup int    `toml:"max_backup" validate:"gte=1"` //最多备份数
 }
 
 func InitLog(c *LogConf) {

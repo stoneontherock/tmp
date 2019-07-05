@@ -6,18 +6,18 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func loadResourceOfRolePolicy(resourceList []Resource, roleName, action string) {
+func loadResourceForRolePolicy(resourceList []Resource, roleName, action string) {
 	if action == "add" {
 		for _, r := range resourceList {
-			logrus.Debugf("增加角色.资源：role:%s, domain:%s rscname:%s, act:%s\n", roleName, r.Domain, r.Name, r.Act)
-			Enforcer.AddPermissionForUser(roleName, r.Name+"@"+r.Domain, r.Act)
+			logrus.Debugf("增加角色.资源：role:%s, domain:%s rscname:%s, action%s\n", roleName, r.Domain, r.Name, r.Action)
+			Enforcer.AddPermissionForUser(roleName, r.Domain+"@"+r.Name, r.Action)
 		}
 		return
 	}
 
 	for _, r := range resourceList {
-		logrus.Debugf("删除角色.资源：role:%s, domain:%s rscname:%s, act:%s\n", roleName, r.Domain, r.Name, r.Act)
-		Enforcer.DeletePermissionForUser(roleName, r.Name+"@"+r.Domain, r.Act)
+		logrus.Debugf("删除角色.资源：role:%s, domain:%s rscname:%s, action%s\n", roleName, r.Domain, r.Name, r.Action)
+		Enforcer.DeletePermissionForUser(roleName, r.Domain+"@"+r.Name, r.Action)
 	}
 	return
 }
@@ -40,15 +40,15 @@ func loadAllRoleRescourcePolicy() error {
 			return fmt.Errorf("载入全局角色-资源策略失败:resources;%v", err)
 		}
 		for _, rsc := range resources {
-			logrus.Debugf("载入全局角色资源策略：role=%s domain=%s rsc=%s act=%s\n", role.Name, rsc.Domain, rsc.Name, rsc.Act)
-			Enforcer.AddPermissionForUser(role.Name, rsc.Name+"@"+rsc.Domain, rsc.Act)
+			logrus.Debugf("载入全局角色资源策略：role=%s domain=%s rsc=%s action%s\n", role.Name, rsc.Domain, rsc.Name, rsc.Action)
+			Enforcer.AddPermissionForUser(role.Name, rsc.Domain+"@"+rsc.Name, rsc.Action)
 		}
 	}
 
 	return nil
 }
 
-func loadRoleOfUserPolicy(roleList []Role, userName, action string) {
+func loadRoleForUserPolicy(roleList []Role, userName, action string) {
 	if action == "add" {
 		for _, role := range roleList {
 			Enforcer.AddRoleForUser(userName, role.Name)

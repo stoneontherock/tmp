@@ -11,15 +11,15 @@ type mRR struct {
 	ResourceIdList []uint `json:"resourceIdList" binding:"gt=0,dive,gt=0"`
 }
 
-func addResourceListOfRole(c *gin.Context) {
+func addResourceListForRole(c *gin.Context) {
 	var mr mRR
-	err := c.BindJSON(&mr)
+	err := c.ShouldBindJSON(&mr)
 	if err != nil {
 		respErr(c, 400, err.Error())
 		return
 	}
 
-	err = addResourceListOfRoleDo(mr.RoleName, mr.ResourceIdList)
+	err = addResourceListForRoleDo(mr.RoleName, mr.ResourceIdList)
 	if err != nil {
 		respErr(c, 500, err.Error())
 		return
@@ -28,7 +28,8 @@ func addResourceListOfRole(c *gin.Context) {
 	respOkEmpty(c)
 }
 
-func addResourceListOfRoleDo(roleName string, resourceIdList []uint) error {
+//todo 域限制
+func addResourceListForRoleDo(roleName string, resourceIdList []uint) error {
 	var rscAppend []Resource
 	role := Role{Name: roleName}
 	err := DB.Model(&role).Where(`id in (?)`, resourceIdList).Find(&rscAppend).Error
@@ -46,19 +47,19 @@ func addResourceListOfRoleDo(roleName string, resourceIdList []uint) error {
 		return fmt.Errorf("添加`角色.资源`失败：%v", err)
 	}
 	logrus.Debugf("增加角色.资源：role:%+v, rscs:%+v\n", role, rscAppend)
-	loadResourceOfRolePolicy(rscAppend, role.Name, "add")
+	loadResourceForRolePolicy(rscAppend, role.Name, "add")
 	return nil
 }
 
-func deleteResourceListOfRole(c *gin.Context) {
+func deleteResourceListForRole(c *gin.Context) {
 	var mr mRR
-	err := c.BindJSON(&mr)
+	err := c.ShouldBindJSON(&mr)
 	if err != nil {
 		respErr(c, 400, err.Error())
 		return
 	}
 
-	err = deleteResourceListOfRoleDo(mr.RoleName, mr.ResourceIdList)
+	err = deleteResourceListForRoleDo(mr.RoleName, mr.ResourceIdList)
 	if err != nil {
 		respErr(c, 500, err.Error())
 		return
@@ -67,7 +68,7 @@ func deleteResourceListOfRole(c *gin.Context) {
 	respOkEmpty(c)
 }
 
-func deleteResourceListOfRoleDo(roleName string, resourceIdList []uint) error {
+func deleteResourceListForRoleDo(roleName string, resourceIdList []uint) error {
 	role := Role{Name: roleName}
 	rscDelete := make([]Resource, len(resourceIdList))
 	for i := range resourceIdList {
@@ -79,6 +80,6 @@ func deleteResourceListOfRoleDo(roleName string, resourceIdList []uint) error {
 		return fmt.Errorf("删除`角色.资源`失败：%v", err)
 	}
 	logrus.Debugf("删除角色.资源：role:%+v, rscs:%+v\n", role, rscDelete)
-	loadResourceOfRolePolicy(rscDelete, role.Name, "del")
+	loadResourceForRolePolicy(rscDelete, role.Name, "del")
 	return nil
 }

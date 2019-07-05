@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package pb;
+
+service AA {
+     rpc Authenticate (AuthenticateIn) returns (AuthenticateOut) {}
+     rpc Authorize (AuthorizeIn) returns (AuthorizeOut) {}
+}
+
+message AuthenticateIn {
+  string token = 1;
+  string action = 2;
+  string domain = 3;
+  string resource = 4;
+}
+
+message AuthenticateOut {
+}
+
+
+message AuthorizeIn {
+  string user_name = 1;
+  string password = 2;
+}
+
+message AuthorizeOut {
+   string token = 1;
+}

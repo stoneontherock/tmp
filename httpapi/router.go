@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"aa/config"
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
 	"gopkg.in/go-playground/validator.v8"
@@ -37,8 +38,9 @@ func newEngine() *gin.Engine {
 		da.GET("/resource", listResource)
 
 		//角色.资源
-		da.POST("/role_resources", addResourceListOfRole)
-		da.DELETE("/role_resources", deleteResourceListOfRole)
+		da.POST("/role_resources", addResourceListForRole)
+		da.DELETE("/role_resources", deleteResourceListForRole)
+		da.GET("/role_resources", getPermissionsForRole)
 
 		//角色
 		da.POST("/role", addRole)
@@ -46,13 +48,17 @@ func newEngine() *gin.Engine {
 		da.GET("/role", listRole)
 
 		//用户.角色
-		da.POST("/user_roles", addOrDelRoleListOfUserFunc("add"))
-		da.DELETE("/user_roles", addOrDelRoleListOfUserFunc("del"))
+		da.POST("/user_roles", addOrDelRoleListForUserFunc("add"))
+		da.DELETE("/user_roles", addOrDelRoleListForUserFunc("del"))
+		da.GET("/user_roles", getRolesForUser)
 
 		//用户
 		da.POST("/user", addUser)
 		da.DELETE("/user", delUser)
 		da.GET("/user", listUser)
+
+		//查询角色下有几个用户
+		da.GET("/role_users", getUsersForRole)
 
 	}
 
@@ -60,17 +66,18 @@ func newEngine() *gin.Engine {
 	apiV.POST("/sa", addDomain)
 	apiV.DELETE("/sa", delDomain)
 	apiV.GET("/sa", listDomain)
-	//鉴权
-	apiV.GET("/permission", checkPermission)
-	apiV.GET("/test", test)
+
+	//鉴权测试,不用时注释掉
+	//apiV.GET("/permission", checkPermission)
+	//apiV.GET("/test", test)
 
 	return e
 }
 
-func Serve(addr string) {
-	gin.SetMode(gin.DebugMode) //gin.ReleaseMode
+func Serve() {
 	r := newEngine()
-	err := r.Run(addr)
+	gin.SetMode(gin.DebugMode) //gin.ReleaseMode
+	err := r.Run(config.C.HTTP.ListenAddr)
 	if err != nil {
 		panic(err)
 	}

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/jinzhu/gorm"
-	"strings"
 )
 
 type roleIn struct {
@@ -14,7 +13,7 @@ type roleIn struct {
 
 func addRole(c *gin.Context) {
 	var ri roleIn
-	err := c.BindJSON(&ri)
+	err := c.ShouldBindJSON(&ri)
 	if err != nil {
 		respErr(c, 400, err.Error())
 		return
@@ -38,7 +37,7 @@ func addRole(c *gin.Context) {
 		return
 	}
 
-	r := Role{Name: ri.Name, DefaultDomain: dm}
+	r := Role{Name: ri.Name, Domain: dm}
 	err = DB.Create(&r).Error
 	if err != nil {
 		respErr(c, 500, fmt.Sprintf("创建角色失败,Create：%v", err))
@@ -50,7 +49,7 @@ func addRole(c *gin.Context) {
 
 func delRole(c *gin.Context) {
 	var ri roleIn
-	err := c.BindJSON(&ri)
+	err := c.ShouldBindJSON(&ri)
 	if err != nil {
 		respErr(c, 400, err.Error())
 		return
@@ -63,9 +62,9 @@ func delRole(c *gin.Context) {
 	}
 
 	var role Role
-	DB.Where(`name = ? AND default_domain = ?`, ri.Name, dm).First(&role)
+	DB.Where(`name = ? AND domain = ?`, ri.Name, dm).First(&role)
 	if role.Name == "" {
-		respErr(c, 500, "角色找不到")
+		respErr(c, 500, "域内找不到该角色")
 		return
 	}
 
@@ -79,9 +78,17 @@ func delRole(c *gin.Context) {
 		return
 	}
 
+	//删除该角色和用户的绑定关系
 	err = tx.Table(`user_role`).Where(`role_name = ?`, ri.Name).Delete(userRole{}).Error
 	if err != nil {
-		respErr(c, 500, fmt.Sprintf("删除用户-角色失败：%v", err))
+		respErr(c, 500, fmt.Sprintf("删除用户角色绑定关系失败：%v", err))
+		return
+	}
+
+	//删除该角色和资源的绑定关系
+	err = tx.Table(`role_resource`).Where(`role_name = ?`, ri.Name).Delete(roleResource{}).Error
+	if err != nil {
+		respErr(c, 500, fmt.Sprintf("删除角色资源绑定关系失败：%v", err))
 		return
 	}
 
@@ -91,43 +98,29 @@ func delRole(c *gin.Context) {
 }
 
 type listRoleIn struct {
-	Domain string `json:"domain" binding:"omitempty,isDomain"`
+	Domain string `form:"domain" binding:"omitempty,isDomain"`
 }
 
 func listRole(c *gin.Context) {
 	var lri listRoleIn
+	err := c.ShouldBindQuery(&lri)
+	if err != nil {
+		respErr(c, 400, err.Error())
+		return
+	}
+
 	dm, err := getDomain(c, lri.Domain)
 	if err != nil {
 		respErr(c, 400, err.Error())
 		return
 	}
 
-	var jdom string
-	if ctxUser(c) == SA {
-		jdom,err =getJoinedDomainByInitialDomain(dm)
-		if err != nil {
-			respErr(c, 400, err.Error())
-			return
-		}
-	}
-	domList := strings.Fields(strings.Replace(dm+","+jdom, ",", " ", -1))
-
-	roleList, err := listRoleByDomainList(domList)
-	if err != nil {
-		respErr(c, 500, err.Error())
+	var roleList []Role
+	err = DB.Where(`domain = ?`, dm).Find(&roleList).Error
+	if err != nil && err != gorm.ErrRecordNotFound {
+		respErr(c, 500, "查詢域內角色失敗:"+err.Error())
 		return
 	}
 
 	c.JSON(200, gin.H{"code": 200, "roleList": roleList, "total": len(roleList)})
 }
-
-func listRoleByDomainList(domList []string) ([]Role, error) {
-	var roleList []Role
-	err := DB.Where(`default_domain IN (?)`, domList).Find(&roleList).Error
-	if err != nil && err != gorm.ErrRecordNotFound {
-		return nil, err
-	}
-
-	return roleList, nil
-}
-
