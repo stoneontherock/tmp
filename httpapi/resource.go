@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/jinzhu/gorm"
+	"strings"
 )
 
 type addResourceIn struct {
@@ -51,11 +52,7 @@ func addResource(c *gin.Context) {
 }
 
 type deleteResourceIn struct {
-	ResourceId uint `json:"resourceID" binding:"gt=0"`
-}
-
-type roleResource struct {
-	RoleName string
+	ResourceId uint `json:"ID" binding:"gt=0"`
 }
 
 func deleteResource(c *gin.Context) {
@@ -111,7 +108,12 @@ func deleteResourceByID(c *gin.Context, resourceId uint) {
 }
 
 type listResourceIn struct {
+	ID     uint   `form:"ID"`
 	Domain string `form:"domain" binding:"omitempty,isDomain"`
+	Offset int    `form:"offset"`
+	Limit  int    `form:"limit"`
+	Sort   string `form:"order"`
+	Order  string `form:"order"`
 }
 
 func listResource(c *gin.Context) {
@@ -128,12 +130,122 @@ func listResource(c *gin.Context) {
 		return
 	}
 
+	//
+	total := 0
+	query := DB.Model(&Resource{}).Where(&Resource{ID: lri.ID, Domain: dm})
+	err = query.Count(&total).Error
+	if err != nil {
+		respErr(c, 500, err.Error())
+		return
+	}
+
+	if total == 0 {
+		c.JSON(200, gin.H{"code": 200, "result": nil, "totalCount": total})
+		return
+	}
+
+	if lri.Limit > 0 {
+		query = query.Limit(lri.Limit)
+	}
+
+	if lri.Sort != "" {
+		query = query.Order(lri.Sort + " " + lri.Order)
+	}
+
 	var rscList []Resource
-	err = DB.Find(&rscList, `domain = ?`, dm).Error
+	err = query.Offset(lri.Offset).Find(&rscList).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
 		respErr(c, 500, err.Error())
 		return
 	}
 
-	c.JSON(200, gin.H{"code": 200, "result": rscList, "totalCount": len(rscList)})
+	//批量查
+	if strings.HasSuffix(c.Request.URL.Path, "resources") {
+		c.JSON(200, gin.H{"code": 200, "result": rscList, "totalCount": len(rscList)})
+		return
+	}
+
+	//单查
+	var r Resource
+	if len(rscList) > 0 {
+		r = rscList[0]
+	}
+
+	c.JSON(200, struct {
+		Code int `json:"code"`
+		Resource
+	}{
+		200,
+		r,
+	})
+}
+
+type editResourceIn struct {
+	Domain     string `json:"domain"`
+	ResourceId uint   `json:"ID" binding:"gt=0"`
+	Name       string `json:"name" binding:"required"`
+	Action     string `json:"action" binding:"required"`
+	Comment    string `json:"comment" binding:"required"`
+}
+
+func editResource(c *gin.Context) {
+	var eri editResourceIn
+	err := c.ShouldBindJSON(&eri)
+	if err != nil {
+		respErr(c, 400, err.Error())
+		return
+	}
+
+	dm, err := getDomain(c, eri.Domain)
+	if err != nil {
+		respErr(c, 400, err.Error())
+		return
+	}
+
+	var cnt int
+	var rsc0 Resource
+	err = DB.Model(&rsc0).Where(`Name = ? AND action = ? AND domain = ?`, eri.Name, eri.Action, dm).Count(&cnt).Error
+	if err != nil {
+		respErr(c, 500, err.Error())
+		return
+	}
+
+	if cnt != 0 {
+		respErr(c, 400, fmt.Sprintf("name=%s,action=%s,domain=%s的资源已存在", eri.Name, eri.Action, dm))
+		return
+	}
+
+	rsc := Resource{ID: eri.ResourceId}
+	if ctxUser(c) == SA {
+		DB.First(&rsc)
+	} else {
+		DB.First(&rsc, "domain = ?", ctxDomain(c))
+	}
+
+	if rsc.Name == "" {
+		respErr(c, 500, "资源不存在或不属于域内资源")
+		return
+	}
+
+	var rrList []roleResource
+	err = DB.Table(`role_resource`).Where(`resource_id = ?`, rsc.ID).Find(&rrList).Error
+	if err != nil && err != gorm.ErrRecordNotFound {
+		respErr(c, 500, fmt.Sprintf("查找角色-资源失败: %v", err))
+		return
+	}
+	for _, rr := range rrList {
+		loadResourceForRolePolicy([]Resource{rsc}, rr.RoleName, "del")
+	}
+
+	err = DB.Model(&rsc).Updates(Resource{Name: eri.Name, Action: eri.Action, Comment: eri.Comment}).Error
+	if err != nil {
+		respErr(c, 500, err.Error())
+		return
+	}
+
+	for _, rr := range rrList {
+		loadResourceForRolePolicy([]Resource{rsc}, rr.RoleName, "add")
+	}
+
+	respOkEmpty(c)
 }

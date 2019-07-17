@@ -5,6 +5,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jinzhu/gorm"
 	"math/rand"
+	"strings"
 	"time"
 )
 
@@ -14,7 +15,7 @@ func init() {
 
 type addUserIn struct {
 	Name   string `json:"name" binding:"isName"`
-	Pstr   string `json:"pstr" binding:"isPstr"`
+	Pstr   string `json:"password" binding:"isPstr"`
 	Domain string `json:"domain" binding:"omitempty,isDomain"`
 }
 
@@ -111,10 +112,9 @@ func delUser(c *gin.Context) {
 
 type luIn struct {
 	Name   string `form:"name"`
-	Domain string `form:"domain" binding:"omitempty,isDomain"`
-	Offset int    `form:"offset" binding:"omitempty,gte=0"`
-	Limit  int    `form:"limit" binding:"omitempty,gt=0"`
-	Sort   string `form:"sort" binding:"omitempty,gt=0"`
+	Domain string `form:"domain"`
+	Offset int    `form:"offset"`
+	Limit  int    `form:"limit"`
 	Order  string `form:"order"`
 }
 
@@ -149,6 +149,10 @@ func listUser(c *gin.Context) {
 		query = query.Limit(li.Limit)
 	}
 
+	if li.Order != "" {
+		query = query.Order("name " + li.Order)
+	}
+
 	var userList []User
 	err = query.Offset(li.Offset).Find(&userList).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
@@ -156,5 +160,62 @@ func listUser(c *gin.Context) {
 		return
 	}
 
-	c.JSON(200, gin.H{"code": 200, "result": userList, "totalCount": total})
+	us := make([]string, len(userList))
+	for i := range userList {
+		us[i] = userList[i].Name
+	}
+	c.JSON(200, gin.H{"code": 200, "result": us, "totalCount": total})
+	return
+}
+
+type chgPwdIn struct {
+	UserName  string `json:"userName"`
+	OldPasswd string `json:"oldPasswd"`
+	NewPasswd string `json:"newPasswd" binding:"isPstr"`
+}
+
+func changePassword(c *gin.Context) {
+	var cpi chgPwdIn
+	err := c.ShouldBindJSON(&cpi)
+	if err != nil {
+		respErr(c, 400, err.Error())
+		return
+	}
+
+	var userName string
+	if (strings.HasPrefix(ctxUser(c), "admin@") || ctxUser(c) == SA) && cpi.UserName != "" {
+		userName = cpi.UserName
+	} else {
+		userName = ctxUser(c)
+	}
+
+	u := User{Name: userName}
+	err = DB.First(&u).Error
+	if err != nil {
+		respErr(c, 500, err.Error())
+		return
+	}
+
+	if ctxUser(c) != SA {
+		if u.Domain != ctxDomain(c) {
+			respErr(c, 400, "不可以修改域外用户的密码")
+			return
+		}
+	}
+
+	//普通用户需要校验密码
+	if ctxUser(c) != SA && !strings.HasPrefix(ctxUser(c), "admin@") {
+		if u.Pstr != md5sum(cpi.OldPasswd+u.Salt) {
+			respErr(c, 400, "原密码错误")
+			return
+		}
+	}
+
+	err = DB.Model(&User{Name: userName}).Update("pstr", md5sum(cpi.NewPasswd+u.Salt)).Error
+	if err != nil {
+		respErr(c, 500, err.Error())
+		return
+	}
+
+	respOkEmpty(c)
 }

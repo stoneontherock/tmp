@@ -13,7 +13,7 @@ import (
 
 type loginIn struct {
 	UserName string `json:"userName" binding:"required"`
-	Pstr     string `json:"pstr" binding:"required"`
+	Pstr     string `json:"password" binding:"required"`
 }
 
 var ErrGenToken = errors.New("token生成失败")

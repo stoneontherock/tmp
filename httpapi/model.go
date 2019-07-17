@@ -15,17 +15,17 @@ var DB *gorm.DB
 
 type Role struct {
 	Name      string     `gorm:"type:varchar(64);primary_key" json:"name"`
-	Domain    string     `gorm:"type:varchar(32)" json:"domain"`
-	Resources []Resource `gorm:"many2many:role_resource;" json:"resources"`
+	Domain    string     `gorm:"type:varchar(32);index" json:"domain"`
+	Resources []Resource `gorm:"many2many:role_resource;" json:"-"`
 	CreatedAt time.Time  `json:"-"`
 	UpdatedAt time.Time  `json:"-"`
 }
 
 type Resource struct {
-	ID        uint      `gorm:"primary_key" json:"id"`
+	ID        uint      `gorm:"primary_key" json:"ID"`
 	Name      string    `gorm:"type:varchar(128)" json:"name"`
 	Action    string    `gorm:"type:varchar(16)" json:"action"`
-	Domain    string    `gorm:"type:varchar(32)" json:"domain"`
+	Domain    string    `gorm:"type:varchar(32);index" json:"-"`
 	Comment   string    `gorm:"type:varchar(128)" json:"comment"`
 	CreatedAt time.Time `json:"-"`
 	UpdatedAt time.Time `json:"-"`
@@ -35,16 +35,20 @@ type User struct {
 	Name   string `gorm:"type:varchar(16);primary_key" json:"name"`
 	Pstr   string `gorm:"type:varchar(32)" json:"-"`
 	Salt   string `gorm:"type:varchar(8)" json:"-"`
-	Domain string `gorm:"type:varchar(32)" json:"-"`
+	Domain string `gorm:"type:varchar(32);index" json:"domain"`
 	//Creator       string    `gorm:"type:varchar(38)" json:"-"`
 	Roles     []Role    `gorm:"many2many:user_role;" json:"-" `
 	CreatedAt time.Time `json:"-"`
 	UpdatedAt time.Time `json:"-"`
 }
 
-
 type userRole struct {
 	UserName string
+	RoleName string
+}
+
+//role-resource表
+type roleResource struct {
 	RoleName string
 }
 

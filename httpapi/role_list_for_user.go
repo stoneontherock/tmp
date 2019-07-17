@@ -55,7 +55,7 @@ func addOrDelRoleListForUser(domain, userName, action string, roleNameList []str
 		cnt := 0
 		DB.Table(`role`).Where(`name = ? AND domain = ?`, roleName, domain).Count(&cnt)
 		if cnt == 0 {
-			return fmt.Errorf("角色(%s)不属于初始域或扩展域", roleName)
+			return fmt.Errorf("角色(%s)不在域内", roleName)
 		}
 	}
 

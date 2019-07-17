@@ -130,7 +130,7 @@ func isDomain(
 		return false
 	}
 
-	if !strings.ContainsAny(dom, "abcdefghijklmnopqrstuvwxyz0123456789") {
+	if !strings.ContainsAny(dom, "abcdefghijklmnopqrstuvwxyz") {
 		return false
 	}
 
@@ -157,6 +157,7 @@ func jwtAuth() gin.HandlerFunc {
 			respErr(c, 401, "token解析失败: "+err.Error())
 			return
 		}
+
 		if !strings.HasPrefix(claims.Username, "admin@") && claims.Username != SA {
 			respErr(c, 401, "普通用户不可以管理权限")
 			return
@@ -185,7 +186,7 @@ func jwtAuth() gin.HandlerFunc {
 			return
 		}
 
-		//域管理员只能访问 /api/vN/da下的路径
+		//域管理员只能访问/api/vN/da下的路径
 		if strings.HasPrefix(claims.Username, "admin@") && strings.HasPrefix(c.Request.RequestURI, URI_VER+"/da") {
 			c.Next()
 			return

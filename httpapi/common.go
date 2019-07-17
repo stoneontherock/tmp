@@ -22,4 +22,3 @@ func md5sum(key string) string {
 	io.WriteString(w, key)
 	return hex.EncodeToString(w.Sum(nil))
 }
-

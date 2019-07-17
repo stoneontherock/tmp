@@ -28,6 +28,7 @@ func newEngine() *gin.Engine {
 	apiV := e.Group(URI_VER)
 
 	apiV.POST("/login", login)
+	apiV.POST("/passwd",changePassword)
 	apiV.Use(jwtAuth())
 
 	da := apiV.Group("/da")
@@ -35,7 +36,10 @@ func newEngine() *gin.Engine {
 		//资源
 		da.POST("/resource", addResource)
 		da.DELETE("/resource", deleteResource)
-		da.GET("/resource", listResource)
+		da.PUT("/resource",editResource)
+		da.GET("/resource", listResource) //单查
+		da.GET("/resources", listResource)  //批量查
+		//da.GET("/resource/:resourceID", getResource)
 
 		//角色.资源
 		da.POST("/role_resources", addResourceListForRole)
@@ -52,24 +56,19 @@ func newEngine() *gin.Engine {
 		da.DELETE("/user_roles", addOrDelRoleListForUserFunc("del"))
 		da.GET("/user_roles", getRolesForUser)
 
+		//查询角色下有几个用户
+		da.GET("/role_users", getUsersForRole)
+
 		//用户
 		da.POST("/user", addUser)
 		da.DELETE("/user", delUser)
 		da.GET("/user", listUser)
-
-		//查询角色下有几个用户
-		da.GET("/role_users", getUsersForRole)
-
 	}
 
 	//超级管理员
-	apiV.POST("/sa", addDomain)
-	apiV.DELETE("/sa", delDomain)
-	apiV.GET("/sa", listDomain)
-
-	//鉴权测试,不用时注释掉
-	//apiV.GET("/permission", checkPermission)
-	//apiV.GET("/test", test)
+	apiV.POST("/sa/domain", addDomain)
+	apiV.DELETE("/sa/domain", delDomain)
+	apiV.GET("/sa/domain", listDomain)
 
 	return e
 }

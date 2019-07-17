@@ -5,6 +5,7 @@ import (
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/mysql"
 	"log"
+	"os"
 	"time"
 )
 
@@ -29,6 +30,10 @@ func InitDataBase(conf *Conf) *gorm.DB {
 	db.DB().SetMaxIdleConns(30)
 	db.DB().SetConnMaxLifetime(20 * time.Second)
 	db.SingularTable(true) //表名非复数形式
+
+	//todo :Debug, 发布后注释掉
+	db.SetLogger(log.New(os.Stdout, "", log.LstdFlags))
+	db.LogMode(true)
 
 	if err = db.DB().Ping(); err != nil {
 		log.Printf("DB.DB().Ping():%v", err.Error())

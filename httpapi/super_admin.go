@@ -7,7 +7,7 @@ import (
 
 type adaIn struct {
 	Domain string `json:"domain" binding:"omitempty,isDomain"` //数字或字母或点号
-	Pstr   string `json:"pstr" binding:"required"`
+	Pstr   string `json:"password" binding:"required"`
 }
 
 func addDomain(c *gin.Context) {

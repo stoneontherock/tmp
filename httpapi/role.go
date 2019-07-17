@@ -99,6 +99,9 @@ func delRole(c *gin.Context) {
 
 type listRoleIn struct {
 	Domain string `form:"domain" binding:"omitempty,isDomain"`
+	Offset int    `form:"offset"`
+	Limit  int    `form:"limit"`
+	Order  string `form:"order"`
 }
 
 func listRole(c *gin.Context) {
@@ -115,12 +118,40 @@ func listRole(c *gin.Context) {
 		return
 	}
 
-	var roleList []Role
-	err = DB.Where(`domain = ?`, dm).Find(&roleList).Error
-	if err != nil && err != gorm.ErrRecordNotFound {
-		respErr(c, 500, "查詢域內角色失敗:"+err.Error())
+	query := DB.Model(&Role{}).Where(&Role{Domain: dm})
+
+	total := 0
+	err = query.Count(&total).Error
+	if err != nil {
+		respErr(c, 500, err.Error())
 		return
 	}
 
-	c.JSON(200, gin.H{"code": 200, "roleList": roleList, "total": len(roleList)})
+	if total == 0 {
+		c.JSON(200, gin.H{"code": 200, "result": nil, "totalCount": total})
+		return
+	}
+
+	if lri.Limit > 0 {
+		query = query.Limit(lri.Limit)
+	}
+
+	if lri.Order != "" {
+		query = query.Order("name " + lri.Order)
+	}
+
+	var roleList []Role
+	err = query.Offset(lri.Offset).Find(&roleList).Error
+	if err != nil && err != gorm.ErrRecordNotFound {
+		respErr(c, 500, err.Error())
+		return
+	}
+
+	rs := make([]string, len(roleList))
+	for i := range roleList {
+		rs[i] = roleList[i].Name
+	}
+
+	c.JSON(200, gin.H{"code": 200, "result": rs, "totalCount": total})
+	return
 }
