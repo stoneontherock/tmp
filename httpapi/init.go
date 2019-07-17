@@ -2,7 +2,7 @@ package httpapi
 
 import (
 	"aa/config"
-	"fmt"
+	"aa/panicerr"
 	"github.com/casbin/casbin"
 	"github.com/jinzhu/gorm"
 	"github.com/sirupsen/logrus"
@@ -37,7 +37,7 @@ func createSuperAdmin() {
 	}
 
 	if err != gorm.ErrRecordNotFound {
-		panic(fmt.Sprintf("查询超管记录时出现错误:%v", err))
+		panic("查询超管记录时出现错误:%v"+ err.Error())
 	}
 
 	sa.Salt = getRandomStr(8)
@@ -45,9 +45,7 @@ func createSuperAdmin() {
 	sa.Domain = "root"
 
 	err = DB.Create(&sa).Error
-	if err != nil {
-		panic(fmt.Sprintf("创建超级管理员账户失败:%v", err))
-	}
+	panicerr.PE(err,"创建超级管理员账户失败")
 }
 
 var Enforcer *casbin.Enforcer
@@ -56,11 +54,8 @@ func initEnforcer() {
 	binDir, _ := filepath.Abs(filepath.Dir(os.Args[0]))
 	Enforcer = casbin.NewEnforcer(binDir+"/config/model.conf", false)
 	err := loadAllRoleRescourcePolicy()
-	if err != nil {
-		panic(err)
-	}
+	panicerr.PE(err,"initEnforcer:loadAllRoleRescourcePolicy")
+
 	err = loadAllUserRolePolicy()
-	if err != nil {
-		panic(err)
-	}
+	panicerr.PE(err,"initEnforcer:loadAllUserRolePolicy")
 }

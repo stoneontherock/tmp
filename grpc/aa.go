@@ -4,6 +4,7 @@ import (
 	"aa/config"
 	"aa/grpc/pb"
 	"aa/httpapi"
+	"aa/panicerr"
 	"context"
 	"errors"
 	"fmt"
@@ -47,21 +48,13 @@ func (s *Server) Authorize(ctx context.Context, in *pb.AuthorizeIn) (*pb.Authori
 
 func Serve() {
 	lis, err := net.Listen("tcp", config.C.GRPC.Addr)
-	if err != nil {
-		logrus.Errorf("创建grpc监听socket失败: %v", err)
-		panic(err)
-	}
+	panicerr.PE(err, "创建grpc监听socket失败")
 
 	cred, err := credentials.NewServerTLSFromFile(config.C.GRPC.Certificate, config.C.GRPC.Key)
-	if err != nil {
-		logrus.Errorf("读取grpc的TLS配置失败: %v", err)
-		panic(err)
-	}
+	panicerr.PE(err, "读取grpc的TLS配置失败")
 
 	instance := grpc.NewServer(grpc.Creds(cred))
 	pb.RegisterAAServer(instance, (*Server)(&config.C.GRPC))
-	if err := instance.Serve(lis); err != nil {
-		logrus.Errorf("grpc服务异常: %v", err)
-		panic(err)
-	}
+	err = instance.Serve(lis)
+	panicerr.PE(err, "grpc服务端实例启动服务异常")
 }

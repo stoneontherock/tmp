@@ -1,6 +1,7 @@
 package db
 
 import (
+	"aa/panicerr"
 	"fmt"
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/mysql"
@@ -22,9 +23,7 @@ func InitDataBase(conf *Conf) *gorm.DB {
 	var err error
 	source := fmt.Sprintf("%s:%s@tcp(%s)/%s?charset=utf8&loc=Local&parseTime=true", conf.User, conf.PStr, conf.Addr, conf.DBName)
 	db, err := gorm.Open("mysql", source)
-	if err != nil {
-		panic(err)
-	}
+    panicerr.PE(err,"连接Mysql")
 
 	db.DB().SetMaxOpenConns(50)
 	db.DB().SetMaxIdleConns(30)
@@ -35,10 +34,8 @@ func InitDataBase(conf *Conf) *gorm.DB {
 	db.SetLogger(log.New(os.Stdout, "", log.LstdFlags))
 	db.LogMode(true)
 
-	if err = db.DB().Ping(); err != nil {
-		log.Printf("DB.DB().Ping():%v", err.Error())
-		panic(err)
-	}
+	err = db.DB().Ping()
+	panicerr.PE(err,"检查数据库连接")
 
 	return db
 }

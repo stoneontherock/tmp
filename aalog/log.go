@@ -1,6 +1,7 @@
 package aalog
 
 import (
+	"aa/panicerr"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/natefinch/lumberjack.v2"
 	"log"
@@ -22,15 +23,11 @@ func InitLog(c *LogConf) {
 	fmtr.DisableColors = true                      // 禁止颜色显示
 
 	dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
-	if err != nil {
-		panic(err)
-	}
+	panicerr.PE(err)
 
 	dir += "/log"
 	err = os.MkdirAll(dir, 0700)
-	if err != nil {
-		panic(err)
-	}
+	panicerr.PE(err,"创建目录")
 
 	f := filepath.Join(dir, filepath.Base(os.Args[0])+".log")
 

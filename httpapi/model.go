@@ -32,7 +32,7 @@ type Resource struct {
 }
 
 type User struct {
-	Name   string `gorm:"type:varchar(16);primary_key" json:"name"`
+	Name   string `gorm:"type:varchar(32);primary_key" json:"name"`
 	Pstr   string `gorm:"type:varchar(32)" json:"-"`
 	Salt   string `gorm:"type:varchar(8)" json:"-"`
 	Domain string `gorm:"type:varchar(32);index" json:"domain"`

@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"aa/config"
+	"aa/panicerr"
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
 	"gopkg.in/go-playground/validator.v8"
@@ -77,7 +78,5 @@ func Serve() {
 	r := newEngine()
 	gin.SetMode(gin.DebugMode) //gin.ReleaseMode
 	err := r.Run(config.C.HTTP.ListenAddr)
-	if err != nil {
-		panic(err)
-	}
+	panicerr.PE(err,"启动http服务失败")
 }

@@ -15,8 +15,8 @@ type PermissonOut struct {
 }
 
 type permissonIn struct {
-	RoleName string `json:"roleName"`
-	Domain   string `json:"domain"`
+	RoleName string `form:"roleName"`
+	Domain   string `form:"domain"`
 }
 
 //获取角色的权限

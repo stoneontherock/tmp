@@ -112,7 +112,7 @@ type listResourceIn struct {
 	Domain string `form:"domain" binding:"omitempty,isDomain"`
 	Offset int    `form:"offset"`
 	Limit  int    `form:"limit"`
-	Sort   string `form:"order"`
+	Sort   string `form:"sort"`
 	Order  string `form:"order"`
 }
 
